@@ -1,1 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>恋おみくじ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'pink-light': '#fce7f3', // Very light pink background
+                        'pink-medium': '#f9a8d4', // Display background
+                        'pink-dark': '#ec4899', // Highlight/Text color
+                        'darker-pink': '#d61d7b', // Button pressed color
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles for cute effects */
+        .roulette-number {
+            /* Text animation for spinning effect */
+            transition: all 0.1s ease-in-out;
+            font-size: 8rem; /* 非常に大きな文字 */
+        }
+        
+        .draw-button, .reset-button {
+            transition: all 0.15s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        .draw-button:hover:not(:disabled), .reset-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(236, 72, 153, 0.3), 0 4px 6px -4px rgba(236, 72, 153, 0.2);
+        }
+        .draw-button:active:not(:disabled), .reset-button:active:not(:disabled) {
+             transform: translateY(0);
+        }
+
+        /* Responsive font size for roulette number */
+        @media (max-width: 640px) {
+            .roulette-number {
+                font-size: 5rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-pink-light min-h-screen p-4 flex items-center justify-center font-sans">
+    <div id="app-container" class="w-full max-w-lg bg-white p-6 md:p-10 rounded-3xl shadow-2xl">
+        
+        <!-- ヘッダーエリア -->
+        <header class="text-center mb-8">
+            <h1 class="text-5xl font-extrabold text-pink-dark mb-2 tracking-tight">
+                <span class="inline-block transform rotate-[-5deg] mr-2">💖</span> 恋おみくじ
+            </h1>
+            <p class="text-gray-500 text-lg">ボタンを押して、今日の運命の数字を引こう！</p>
+        </header>
+
+        <!-- メインコンテンツエリア -->
+        <main id="main-content">
+            <!-- ルーレットとボタンエリア -->
+            <div id="roulette-container" class="text-center p-6 border-4 border-pink-dark border-dashed rounded-3xl transition-opacity duration-500">
+                <!-- ルーレット数字表示エリア -->
+                <div id="roulette-display" class="roulette-number font-extrabold text-pink-dark mb-8 h-36 flex items-center justify-center bg-pink-light rounded-xl shadow-inner">
+                    ?
+                </div>
+                
+                <!-- おみくじを引くボタン (初期表示) -->
+                <button id="draw-button" class="draw-button w-full px-8 py-4 bg-pink-dark text-white text-2xl font-bold rounded-full shadow-lg hover:bg-darker-pink transition-colors">
+                    おみくじを引く
+                </button>
+                
+                <!-- もう一度引くボタン (初期は非表示) -->
+                <button id="reset-button" class="reset-button hidden mt-4 w-full px-8 py-4 bg-white text-pink-dark text-2xl font-bold rounded-full shadow-lg hover:bg-pink-light transition-colors">
+                    もう一度引く
+                </button>
+            </div>
+        </main>
+
+    </div>
+
+    <script type="module">
+        // 恋おみくじの結果データ (結果はコンソールにのみ出力され、画面には表示されません)
+        const FORTUNES = [
+            { grade: "大吉 (だい・きち)", advice: "最高の運気！積極的な行動が吉と出ます。告白や大切な決断は今日がチャンスです。" },
+            { grade: "恋吉 (こい・きち)", advice: "片思いが叶う予感！相手の興味や趣味をリサーチしてみて。共通の話題が愛を育みます。" },
+            { grade: "中吉 (ちゅう・きち)", advice: "順調な進展が見込めます。焦らず、自然体で接しましょう。あなたの魅力が伝わります。" },
+            { grade: "小吉 (しょう・きち)", advice: "少しの努力が必要です。メールやSNSよりも、対面での会話を心がけると吉。" },
+            { grade: "吉 (きち)", advice: "現状維持でOK。ただし、マンネリには要注意。小さなサプライズで関係に刺激を与えて。" },
+            { grade: "待ち吉 (まち・きち)", advice: "運命の出会いが近づいています。いつもと違う場所に足を運んでみましょう。" },
+            { grade: "微吉 (び・きち)", advice: "勇気を出して一歩踏み出す時です。小さな行動の積み重ねが大きな愛へと繋がります。" },
+            { grade: "愛の兆し (あい・の・きざし)", advice: "素敵な異性との予期せぬ出会いが。今日はいつもよりオシャレをして出かけましょう。" },
+            { grade: "結び吉 (むすび・きち)", advice: "既に知っている人との関係が深まる兆し。疎遠になっている人に連絡を取ってみて。" },
+            { grade: "試練吉 (しれん・きち)", advice: "試される恋ですが、諦めなければ必ず報われます。あなたの誠実さを見せる時です。" },
+            { grade: "努力吉 (どりょく・きち)", advice: "努力が報われる運勢。諦めず、継続することが大切です。相手を思う気持ちを形にしましょう。" },
+            { grade: "絆吉 (きずな・きち)", advice: "友情から恋へ発展するかも。共通の趣味や時間を一緒に過ごす機会を増やしてみて。" },
+            { grade: "変化の吉 (へんか・の・きち)", advice: "状況が大きく変わる時期。変化を恐れずに受け入れれば、幸福が待っています。" },
+            { grade: "復活吉 (ふっかつ・きち)", advice: "一度終わった恋が再び動き出すかも。過去を清算し、新しい気持ちで向き合って。" },
+            { grade: "満月吉 (まんげつ・きち)", advice: "満月の夜に願いが叶いやすい運勢。ロマンチックな場所でのデートを計画して。" },
+            { grade: "花開く吉 (はな・ひらく・きち)", advice: "あなたの才能と魅力が満開に。自信を持って行動することで、さらに輝きます。" },
+            { grade: "穏やか吉 (おだやか・きち)", advice: "平穏で心温まる関係が続く予感。日常の中で感謝の気持ちを伝えることが大切です。" },
+            { grade: "気まぐれ吉 (きまぐれ・きち)", advice: "相手の気持ちが変わりやすい時。振り回されず、どっしり構える姿勢が大事です。" },
+            { grade: "空回り (からまわり)", advice: "焦ると逆効果。一度立ち止まって、本当に大切なことは何か冷静に考えてみましょう。" },
+            { grade: "恋の嵐 (こい・の・あらし)", advice: "意見の衝突があるかも。誠実な対話と相手への思いやりが解決の鍵です。" },
+            { grade: "要注意 (ようちゅうい)", advice: "誘惑が多い時です。本命以外に目を向けないよう、しっかりと心を引き締めて。" },
+            { grade: "遠回り (とおまわり)", advice: "すぐには進展しないかも。今は自己成長に専念する時期と考えましょう。" },
+            { grade: "忍耐 (にんたい)", advice: "辛抱の時です。時期を待てば、必ず良い方向に向かいます。焦りは禁物。" },
+            { grade: "凶 (きょう)", advice: "今日は少し静かに過ごしましょう。大切な行動は控えめに。明日に期待してね。" },
+        ];
+
+        // DOM要素の取得
+        const rouletteDisplay = document.getElementById('roulette-display');
+        const drawButton = document.getElementById('draw-button');
+        const resetButton = document.getElementById('reset-button');
+        
+        let fortuneMap = {}; // 1-24の数字と結果を紐づけるマップ
+        let spinInterval;
+        let finalNumber = 0; // ルーレットが停止する最終番号
+
+        // Fisher-Yates shuffleアルゴリズム: 結果のランダム割り当てに使用
+        const shuffleArray = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        };
+
+        // 初期化処理: おみくじ結果のリセットとUIの初期状態への復元
+        const initializeFortune = () => {
+            // 1. 結果リストをシャッフルし、数字に割り当てる
+            const shuffledFortunes = shuffleArray([...FORTUNES]);
+            fortuneMap = {};
+            for (let i = 1; i <= 24; i++) {
+                fortuneMap[i] = shuffledFortunes[i - 1];
+            }
+            
+            // 2. UIの状態をリセット
+            rouletteDisplay.textContent = '?';
+            drawButton.disabled = false;
+            drawButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            drawButton.classList.remove('hidden'); // 'おみくじを引く'ボタンを表示
+            resetButton.classList.add('hidden');   // 'もう一度引く'ボタンを非表示
+        };
+
+        // ルーレット開始処理
+        const startRoulette = () => {
+            // ボタンを非活性化
+            drawButton.disabled = true;
+            drawButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // 最終決定する番号をランダムに選ぶ (1〜24)
+            finalNumber = Math.floor(Math.random() * 24) + 1;
+            
+            const SPIN_DURATION = 3000; // 3.0秒間スピン
+            const startTimestamp = Date.now();
+
+            // スピンアニメーションを開始
+            spinInterval = setInterval(() => {
+                const elapsed = Date.now() - startTimestamp;
+
+                if (elapsed < SPIN_DURATION) {
+                    // スピン中: 1から24の数字をランダムに高速表示
+                    let spinningNumber = Math.floor(Math.random() * 24) + 1;
+                    rouletteDisplay.textContent = spinningNumber;
+                } else {
+                    // 停止処理
+                    clearInterval(spinInterval);
+                    rouletteDisplay.textContent = finalNumber; // 最終番号を表示
+                    
+                    // 結果表示処理（ボタン切り替えのみ）を呼び出す
+                    setTimeout(() => drawFortune(finalNumber), 500); 
+                }
+            }, 50); // 50msごとに数字を更新
+        };
+
+        // おみくじを引く処理（ボタン切り替えのみ行う）
+        const drawFortune = (number) => {
+            // 内部的には結果を取得（コンソールにのみ出力）
+            const result = fortuneMap[number]; 
+            console.log(`引かれた数字: ${number}番。運勢: ${result.grade} - アドバイス: ${result.advice}`);
+
+            // UIを更新: drawボタンを隠し、resetボタンを表示
+            drawButton.classList.add('hidden'); 
+            resetButton.classList.remove('hidden'); 
+        };
+
+        // イベントリスナー
+        drawButton.addEventListener('click', startRoulette);
+        resetButton.addEventListener('click', initializeFortune);
+
+        // アプリ起動時に初期化を実行
+        window.onload = initializeFortune;
+
+    </script>
+</body>
+</html>
 
